@@ -211,17 +211,28 @@
             class="w-full px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-700/70 text-sm text-slate-200 focus:outline-none focus:border-orange-500">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-300 uppercase tracking-wider mb-1">Category</label>
             <input type="text" id="form-category" placeholder="Dinner, Dessert, Italian..." 
               class="w-full px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-700/70 text-sm text-slate-200 focus:outline-none focus:border-orange-500">
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-300 uppercase tracking-wider mb-1">Image URL</label>
-            <input type="url" id="form-image" placeholder="https://images.unsplash.com/..." 
-              class="w-full px-3.5 py-2 rounded-xl bg-slate-900/80 border border-slate-700/70 text-sm text-slate-200 focus:outline-none focus:border-orange-500">
+            <label class="block text-xs font-medium text-slate-300 uppercase tracking-wider mb-1">Recipe Photo</label>
+            <label class="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/70 border-dashed text-sm text-slate-300 cursor-pointer transition">
+              <i data-lucide="image-plus" class="w-4 h-4 text-orange-400"></i>
+              <span id="file-label-text">Upload Image</span>
+              <input type="file" id="form-image-file" accept="image/*" onchange="handleImageSelect(event)" class="hidden">
+            </label>
           </div>
+        </div>
+
+        <!-- Image Preview Container -->
+        <div id="image-preview-container" class="hidden relative rounded-xl overflow-hidden border border-slate-700/70 bg-slate-900/80 h-36">
+          <img id="image-preview" src="" class="w-full h-full object-cover" alt="Image preview">
+          <button type="button" onclick="clearImageSelection()" class="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white border border-white/10 transition" title="Remove photo">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
 
         <div class="grid grid-cols-3 gap-4">
@@ -348,6 +359,7 @@
 
     let recipes = [];
     let currentFilter = "All";
+    let currentImageData = ""; // Stores current uploaded base64 image data
 
     // Initialize App
     document.addEventListener("DOMContentLoaded", () => {
@@ -505,11 +517,44 @@
       document.getElementById("view-modal").classList.add("hidden");
     }
 
+    // Image Upload Handling
+    function handleImageSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        currentImageData = event.target.result;
+        showImagePreview(currentImageData);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showImagePreview(src) {
+      const container = document.getElementById("image-preview-container");
+      const img = document.getElementById("image-preview");
+      const labelText = document.getElementById("file-label-text");
+
+      img.src = src;
+      container.classList.remove("hidden");
+      labelText.innerText = "Change Photo";
+    }
+
+    function clearImageSelection() {
+      currentImageData = "";
+      document.getElementById("form-image-file").value = "";
+      document.getElementById("image-preview-container").classList.add("hidden");
+      document.getElementById("image-preview").src = "";
+      document.getElementById("file-label-text").innerText = "Upload Image";
+    }
+
     // Add/Edit Modal
     function openModal(id = null) {
       const modal = document.getElementById("modal");
       const form = document.getElementById("recipe-form");
       
+      clearImageSelection();
+
       if (id) {
         const r = recipes.find(item => item.id === id);
         if (!r) return;
@@ -517,13 +562,17 @@
         document.getElementById("recipe-id").value = r.id;
         document.getElementById("form-title").value = r.title;
         document.getElementById("form-category").value = r.category || "";
-        document.getElementById("form-image").value = r.image || "";
         document.getElementById("form-prep").value = r.prepTime || "";
         document.getElementById("form-cook").value = r.cookTime || "";
         document.getElementById("form-servings").value = r.servings || "";
         document.getElementById("form-description").value = r.description || "";
         document.getElementById("form-ingredients").value = r.ingredients.join("\n");
         document.getElementById("form-instructions").value = r.instructions.join("\n");
+
+        if (r.image) {
+          currentImageData = r.image;
+          showImagePreview(r.image);
+        }
       } else {
         document.getElementById("modal-title").innerText = "Add New Recipe";
         form.reset();
@@ -531,6 +580,7 @@
       }
 
       modal.classList.remove("hidden");
+      lucide.createIcons();
     }
 
     function closeModal() {
@@ -543,7 +593,7 @@
       const id = document.getElementById("recipe-id").value;
       const title = document.getElementById("form-title").value.trim();
       const category = document.getElementById("form-category").value.trim();
-      const image = document.getElementById("form-image").value.trim();
+      const image = currentImageData;
       const prepTime = document.getElementById("form-prep").value.trim();
       const cookTime = document.getElementById("form-cook").value.trim();
       const servings = document.getElementById("form-servings").value.trim();
