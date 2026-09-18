@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secret Pantry - Password Protected Recipes</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            clay: {
+              50: '#fdf8f6',
+              100: '#f2e8e5',
+              200: '#e8d5ce',
+              500: '#c85a32',
+              600: '#b04924',
+              700: '#8e3819',
+              900: '#421a0c',
+            },
+            sage: {
+              50: '#f4f7f4',
+              100: '#e3ebe3',
+              500: '#52796f',
+              600: '#354f52',
+              700: '#2f3e46',
+            },
+            cream: '#fcfaf7',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    body {
+      background-color: #fcfaf7;
+      color: #2f3e46;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f4f7f4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d1dad1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #b2c0b2;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <div id="authOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-cream rounded-3xl border border-clay-200 shadow-2xl max-w-md w-full p-8 text-center relative overflow-hidden">
+      <div class="absolute -top-12 -right-12 w-32 h-32 bg-clay-500/10 rounded-full blur-2xl"></div>
+      
+      <div class="w-16 h-16 bg-clay-100 text-clay-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-clay-200">
+        <i data-lucide="lock" class="w-8 h-8"></i>
+      </div>
+
+      <h1 class="text-2xl font-bold text-sage-700 tracking-tight">Secret Pantry</h1>
+      <p class="text-xs text-clay-600 font-medium uppercase tracking-wider mt-1">Recipe Book Protection</p>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="mt-6 space-y-4">
+        <div>
+          <label for="passwordInput" class="block text-xs font-semibold text-sage-600 uppercase mb-2 text-left">Master Passcode</label>
+          <div class="relative">
+            <input 
+              type="password" 
+              id="passwordInput" 
+              required 
+              placeholder="Enter passcode..." 
+              class="w-full bg-white border border-sage-100 rounded-xl py-3 px-4 text-sm text-sage-700 focus:outline-none focus:border-clay-500 transition shadow-sm"
+            />
+          </div>
+        </div>
+
+        <p id="authError" class="text-rose-600 text-xs hidden bg-rose-50 p-2.5 rounded-lg border border-rose-100">
+          Incorrect passcode. Default is <strong>1234</strong>
+        </p>
+
+        <button 
+          type="submit" 
+          class="w-full bg-clay-500 hover:bg-clay-600 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-clay-500/20 flex items-center justify-center gap-2 text-sm"
+        >
+          <i data-lucide="key-round" class="w-4 h-4"></i>
+          <span>Unlock Recipes</span>
+        </button>
+      </form>
+
+      <p class="text-[11px] text-sage-600/70 mt-6">
+        First time? Default passcode is <span class="font-mono font-bold bg-clay-100 px-1.5 py-0.5 rounded text-clay-700">1234</span>. You can change this in Settings once unlocked.
+      </p>
+    </div>
+  </div>
+
+  <div id="appContainer" class="flex-col flex-grow hidden">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-sage-100 sticky top-0 z-30">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-clay-500 text-white rounded-xl flex items-center justify-center shadow-md shadow-clay-500/20">
+            <i data-lucide="cooking-pot" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-none text-sage-700">Secret Pantry</h1>
+            <p class="text-[10px] text-clay-600 font-semibold tracking-wide">PRIVATE RECIPE VAULT</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button 
+            onclick="openRecipeModal()" 
+            class="bg-clay-500 hover:bg-clay-600 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+          >
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Add Recipe</span>
+          </button>
+
+          <button 
+            onclick="toggleSettingsModal()" 
+            title="Passcode & Backup Settings" 
+            class="p-2 text-sage-600 hover:bg-sage-50 rounded-xl transition border border-transparent hover:border-sage-100"
+          >
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+
+          <button 
+            onclick="lockVault()" 
+            title="Lock Pantry" 
+            class="p-2 text-sage-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+          >
+            <i data-lucide="log-out" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <div id="sidebarCol" class="col-span-12 lg:col-span-5 space-y-4">
+        
+        <!-- Search & Category Filters -->
+        <div class="bg-white p-3.5 rounded-2xl border border-sage-100 shadow-sm space-y-3">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-sage-500 absolute left-3 top-3"></i>
+            <input 
+              type="text" 
+              id="searchInput" 
+              oninput="renderRecipeList()" 
+              placeholder="Search recipes, ingredients..." 
+              class="w-full bg-cream border border-sage-100 rounded-xl py-2 pl-9 pr-3 text-xs text-sage-700 focus:outline-none focus:border-clay-500 transition"
+            />
+          </div>
+
+          <div id="categoryBar" class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+            <!-- Dynamic Category Pills -->
+          </div>
+        </div>
+
+        <!-- Recipe List -->
+        <div id="recipeList" class="space-y-3">
+          <!-- Dynamic Recipe Cards -->
+        </div>
+      </div>
+
+      <div id="detailCol" class="col-span-12 lg:col-span-7">
+        <div id="detailContainer" class="bg-white border border-sage-100 rounded-3xl shadow-sm overflow-hidden sticky top-20 min-h-[500px]">
+          <!-- Dynamic Selected Recipe Content -->
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  
+  <!-- NFC Tag Helper Modal -->
+  <div id="nfcModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-cream border border-sage-100 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeNfcModal()" class="absolute top-4 right-4 text-sage-600 hover:text-sage-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 bg-clay-100 text-clay-600 rounded-2xl flex items-center justify-center border border-clay-200">
+          <i data-lucide="nfc" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-sage-700">Program NFC Tag</h3>
+          <p class="text-xs text-sage-500" id="nfcRecipeTitle">Target Link</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-sage-600 mb-4 leading-relaxed">
+        Write this URL onto your physical NFC tag using any mobile app like <strong>NFC Tools</strong> (iOS/Android) or tap "Write Web NFC" below if supported by your device browser.
+      </p>
+
+      <div class="bg-white border border-sage-100 p-3 rounded-xl flex items-center justify-between gap-2 mb-4">
+        <span id="nfcUrlDisplay" class="text-xs font-mono text-clay-600 truncate"></span>
+        <button 
+          onclick="copyNfcUrl()" 
+          id="copyNfcBtn" 
+          class="bg-clay-500 hover:bg-clay-600 text-white p-2 rounded-lg transition text-xs font-semibold flex items-center gap-1 flex-shrink-0"
+        >
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>Copy URL</span>
+        </button>
+      </div>
+
+      <div id="webNfcSection" class="hidden mb-4">
+        <button 
+          onclick="writeWebNfc()" 
+          class="w-full bg-sage-500 hover:bg-sage-600 text-white font-semibold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2"
+        >
+          <i data-lucide="smartphone" class="w-4 h-4"></i>
+          <span>Write Tag directly (Web NFC)</span>
+        </button>
+      </div>
+
+      <div class="bg-sage-50 p-3 rounded-xl border border-sage-100 text-[11px] text-sage-600 flex gap-2">
+        <i data-lucide="shield-check" class="w-4 h-4 text-sage-500 flex-shrink-0 mt-0.5"></i>
+        <span>When tapped, the website will open this recipe directly. If locked, it will prompt for your master passcode first!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recipe Add/Edit Modal -->
+  <div id="recipeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-cream border border-sage-100 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative">
+      <button onclick="closeRecipeModal()" class="absolute top-4 right-4 text-sage-600 hover:text-sage-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 id="recipeModalTitle" class="text-xl font-bold text-sage-700 mb-4">Add New Recipe</h2>
+
+      <form id="recipeForm" onsubmit="saveRecipe(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="formRecipeId" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sage-600 font-semibold mb-1">Recipe Title *</label>
+            <input type="text" id="formTitle" required placeholder="e.g. Garlic Butter Pasta" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500" />
+          </div>
+
+          <div>
+            <label class="block text-sage-600 font-semibold mb-1">Category</label>
+            <select id="formCategory" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500">
+              <option value="Breakfast">Breakfast</option>
+              <option value="Dinner">Dinner</option>
+              <option value="Baking">Baking</option>
+              <option value="Quick Snacks">Quick Snacks</option>
+              <option value="Sauces & Dips">Sauces & Dips</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sage-600 font-semibold mb-1">Prep Time</label>
+            <input type="text" id="formPrepTime" placeholder="10 mins" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500" />
+          </div>
+          <div>
+            <label class="block text-sage-600 font-semibold mb-1">Cook Time</label>
+            <input type="text" id="formCookTime" placeholder="15 mins" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500" />
+          </div>
+          <div>
+            <label class="block text-sage-600 font-semibold mb-1">Servings</label>
+            <input type="text" id="formServings" placeholder="2-4" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sage-600 font-semibold mb-1">Image URL (Optional)</label>
+          <input type="url" id="formImageUrl" placeholder="https://..." class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500" />
+        </div>
+
+        <div>
+          <label class="block text-sage-600 font-semibold mb-1">Ingredients (One per line) *</label>
+          <textarea id="formIngredients" rows="4" required placeholder="3 cloves garlic, minced&#10;200g spaghetti&#10;2 tbsp olive oil" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 font-mono text-sage-700 focus:outline-none focus:border-clay-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sage-600 font-semibold mb-1">Step-by-step Instructions (One per line) *</label>
+          <textarea id="formInstructions" rows="4" required placeholder="Boil pasta in salted water.&#10;Sauté minced garlic in olive oil.&#10;Toss pasta with garlic oil and serve." class="w-full bg-white border border-sage-100 rounded-xl p-2.5 font-mono text-sage-700 focus:outline-none focus:border-clay-500"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sage-600 font-semibold mb-1">Chef Notes & Tips</label>
+          <textarea id="formNotes" rows="2" placeholder="Garnish with fresh parsley or chili flakes..." class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-sage-700 focus:outline-none focus:border-clay-500"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-sage-100">
+          <button type="button" onclick="closeRecipeModal()" class="px-4 py-2 bg-sage-50 hover:bg-sage-100 text-sage-600 font-medium rounded-xl transition">Cancel</button>
+          <button type="submit" class="px-5 py-2 bg-clay-500 hover:bg-clay-600 text-white font-bold rounded-xl transition shadow-md shadow-clay-500/20">Save Recipe</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings & Backup Modal -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-cream border border-sage-100 rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-6">
+      <button onclick="toggleSettingsModal()" class="absolute top-4 right-4 text-sage-600 hover:text-sage-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-sage-100 text-sage-700 rounded-2xl flex items-center justify-center border border-sage-200">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-sage-700">Settings & Sync</h3>
+          <p class="text-xs text-sage-500">Manage passcode & data</p>
+        </div>
+      </div>
+
+      <!-- Password Change Section -->
+      <form onsubmit="changePasscode(event)" class="space-y-3 pt-2 border-t border-sage-100">
+        <h4 class="text-xs font-bold text-sage-700 uppercase tracking-wide">Change Master Passcode</h4>
+        <div>
+          <input type="password" id="newPasscode" required placeholder="New Passcode" class="w-full bg-white border border-sage-100 rounded-xl p-2.5 text-xs text-sage-700 focus:outline-none focus:border-clay-500" />
+        </div>
+        <button type="submit" class="w-full bg-sage-600 hover:bg-sage-700 text-white font-semibold py-2 rounded-xl text-xs transition">
+          Update Passcode
+        </button>
+      </form>
+
+      <!-- Backup / Restore JSON -->
+      <div class="space-y-3 pt-4 border-t border-sage-100">
+        <h4 class="text-xs font-bold text-sage-700 uppercase tracking-wide">Backup & Sync Data</h4>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="exportRecipes()" class="bg-white hover:bg-sage-50 text-sage-700 border border-sage-200 font-medium py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-clay-500"></i>
+            <span>Export JSON</span>
+          </button>
+
+          <label class="bg-white hover:bg-sage-50 text-sage-700 border border-sage-200 font-medium py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-sage-500"></i>
+            <span>Import JSON</span>
+            <input type="file" accept=".json" onchange="importRecipes(event)" class="hidden" />
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initial Default Seed Data
+    const SAMPLE_RECIPES = [
+      {
+        id: 'guacamole',
+        title: 'Authentic Fresh Guacamole',
+        category: 'Sauces & Dips',
+        prepTime: '10 mins',
+        cookTime: '0 mins',
+        servings: '4 servings',
+        imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80',
+        ingredients: [
+          '3 ripe Hass avocados',
+          '1/2 small red onion, finely diced',
+          '2 Roma tomatoes, seeded and diced',
+          '1/3 cup fresh cilantro, chopped',
+          '1 jalapeno, seeded and minced',
+          '1 lime, juiced',
+          '1/2 tsp sea salt'
+        ],
+        instructions: [
+          'Cut avocados in half, remove pit, and scoop flesh into a bowl.',
+          'Mash with a fork until desired chunkiness.',
+          'Fold in red onion, tomatoes, cilantro, and jalapeno.',
+          'Squeeze in lime juice and stir in sea salt.',
+          'Taste and adjust seasoning if needed. Serve immediately with tortilla chips!'
+        ],
+        notes: 'Keep the avocado pit in the bowl if storing for later to reduce browning.'
+      },
+      {
+        id: 'garlic-pasta',
+        title: 'Quick Garlic Butter Pasta',
+        category: 'Dinner',
+        prepTime: '5 mins',
+        cookTime: '12 mins',
+        servings: '2 servings',
+        imageUrl: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281270?auto=format&fit=crop&w=600&q=80',
+        ingredients: [
+          '200g Spaghetti or Fettuccine',
+          '4 tbsp unsalted butter',
+          '4 cloves garlic, thinly sliced',
+          '1/4 cup grated Parmesan cheese',
+          '1/2 tsp red pepper flakes',
+          'Fresh parsley for garnish'
+        ],
+        instructions: [
+          'Boil pasta in salted water according to package instructions until al dente. Reserve 1/2 cup pasta water.',
+          'Melt butter in a large skillet over medium-low heat. Add garlic and red pepper flakes, cooking until garlic is fragrant (2 mins).',
+          'Toss drained pasta into skillet with butter sauce.',
+          'Remove from heat, add Parmesan cheese and splashes of pasta water to create a glossy glaze.',
+          'Garnish with fresh chopped parsley and serve warm.'
+        ],
+        notes: 'Do not brown the garlic too much or it will taste bitter.'
+      },
+      {
+        id: 'chip-cookies',
+        title: 'Chewy Chocolate Chip Cookies',
+        category: 'Baking',
+        prepTime: '15 mins',
+        cookTime: '10 mins',
+        servings: '12 cookies',
+        imageUrl: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=600&q=80',
+        ingredients: [
+          '1/2 cup unsalted butter, melted',
+          '1/2 cup brown sugar',
+          '1/4 cup white granulated sugar',
+          '1 large egg',
+          '1 tsp vanilla extract',
+          '1.5 cups all-purpose flour',
+          '1/2 tsp baking soda',
+          '1 cup dark chocolate chips'
+        ],
+        instructions: [
+          'Preheat oven to 350°F (175°C) and line a baking sheet with parchment paper.',
+          'Whisk melted butter, brown sugar, and white sugar together in a bowl.',
+          'Beat in egg and vanilla extract until smooth.',
+          'Fold in flour and baking soda, then stir in chocolate chips.',
+          'Scoop dough into balls and bake for 9-11 minutes until edges are golden.'
+        ],
+        notes: 'Chill dough in fridge for 30 minutes for thicker, chewier cookies.'
+      }
+    ];
+
+    // Global State
+    let recipes = [];
+    let selectedRecipeId = null;
+    let selectedCategory = 'All';
+    let isCookingMode = false;
+    let activeNfcRecipe = null;
+
+    // Local Storage Keys
+    const PASS_KEY = 'secret_pantry_passcode';
+    const RECIPE_KEY = 'secret_pantry_recipes';
+    const SESSION_KEY = 'secret_pantry_unlocked';
+
+    window.onload = () => {
+      lucide.createIcons();
+      initPasscode();
+      loadRecipes();
+
+      // Check URL Deep Linking (?recipe=ID or ?id=ID)
+      const urlParams = new URLSearchParams(window.location.search);
+      const linkedRecipe = urlParams.get('recipe') || urlParams.get('id');
+
+      // Session Check
+      if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+        unlockApp(linkedRecipe);
+      }
+    };
+
+    function initPasscode() {
+      if (!localStorage.getItem(PASS_KEY)) {
+        localStorage.setItem(PASS_KEY, '1234'); // Default password
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const entered = document.getElementById('passwordInput').value;
+      const stored = localStorage.getItem(PASS_KEY);
+
+      if (entered === stored) {
+        sessionStorage.setItem(SESSION_KEY, 'true');
+        document.getElementById('authError').classList.add('hidden');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const linkedRecipe = urlParams.get('recipe') || urlParams.get('id');
+        unlockApp(linkedRecipe);
+      } else {
+        document.getElementById('authError').classList.remove('hidden');
+      }
+    }
+
+    function unlockApp(deepLinkId = null) {
+      document.getElementById('authOverlay').classList.add('hidden');
+      document.getElementById('appContainer').classList.remove('hidden');
+      document.getElementById('appContainer').classList.add('flex');
+
+      // Handle Deep Link Selection
+      if (deepLinkId) {
+        const found = recipes.find(r => r.id === deepLinkId);
+        if (found) {
+          selectedRecipeId = found.id;
+        }
+      }
+
+      if (!selectedRecipeId && recipes.length > 0) {
+        selectedRecipeId = recipes[0].id;
+      }
+
+      renderCategories();
+      renderRecipeList();
+      renderRecipeDetail();
+    }
+
+    function lockVault() {
+      sessionStorage.removeItem(SESSION_KEY);
+      location.reload();
+    }
+
+    function changePasscode(e) {
+      e.preventDefault();
+      const newPass = document.getElementById('newPasscode').value;
+      if (newPass) {
+        localStorage.setItem(PASS_KEY, newPass);
+        alert('Master passcode updated successfully!');
+        toggleSettingsModal();
+        document.getElementById('newPasscode').value = '';
+      }
+    }
+
+    function loadRecipes() {
+      const stored = localStorage.getItem(RECIPE_KEY);
+      if (stored) {
+        try {
+          recipes = JSON.parse(stored);
+        } catch (e) {
+          recipes = SAMPLE_RECIPES;
+        }
+      } else {
+        recipes = SAMPLE_RECIPES;
+        saveRecipesToStorage();
+      }
+    }
+
+    function saveRecipesToStorage() {
+      localStorage.setItem(RECIPE_KEY, JSON.stringify(recipes));
+    }
+
+    function renderCategories() {
+      const cats = ['All', ...new Set(recipes.map(r => r.category))];
+      const categoryBar = document.getElementById('categoryBar');
+      
+      categoryBar.innerHTML = cats.map(cat => `
+        <button 
+          onclick="setCategory('${cat}')" 
+          class="px-3 py-1 rounded-lg whitespace-nowrap font-medium transition ${
+            selectedCategory === cat 
+              ? 'bg-clay-500 text-white shadow-sm' 
+              : 'bg-cream text-sage-600 hover:bg-sage-50 border border-sage-100'
+          }"
+        >
+          ${cat}
+        </button>
+      `).join('');
+    }
+
+    function setCategory(cat) {
+      selectedCategory = cat;
+      renderCategories();
+      renderRecipeList();
+    }
+
+    function renderRecipeList() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const recipeList = document.getElementById('recipeList');
+
+      const filtered = recipes.filter(r => {
+        const matchesQuery = r.title.toLowerCase().includes(query) || 
+                             r.ingredients.some(i => i.toLowerCase().includes(query));
+        const matchesCat = selectedCategory === 'All' || r.category === selectedCategory;
+        return matchesQuery && matchesCat;
+      });
+
+      if (filtered.length === 0) {
+        recipeList.innerHTML = `
+          <div class="bg-white border border-dashed border-sage-200 rounded-2xl p-6 text-center text-sage-500">
+            <i data-lucide="book-x" class="w-8 h-8 mx-auto mb-2 text-sage-400"></i>
+            <p class="text-xs font-medium">No recipes found matching your query.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      recipeList.innerHTML = filtered.map(r => {
+        const isSelected = r.id === selectedRecipeId;
+        return `
+          <div 
+            onclick="selectRecipe('${r.id}')"
+            class="group cursor-pointer rounded-2xl p-3 border transition flex gap-3.5 items-center ${
+              isSelected 
+                ? 'bg-white border-clay-500 shadow-md shadow-clay-500/5 ring-1 ring-clay-500/20' 
+                : 'bg-white/60 border-sage-100 hover:bg-white hover:border-sage-200'
+            }"
+          >
+            <div class="w-16 h-16 rounded-xl bg-sage-50 overflow-hidden flex-shrink-0 relative">
+              ${r.imageUrl ? `
+                <img src="${r.imageUrl}" alt="${r.title}" class="w-full h-full object-cover group-hover:scale-105 transition" onerror="this.style.display='none'" />
+              ` : `
+                <div class="w-full h-full flex items-center justify-center text-sage-400">
+                  <i data-lucide="utensils" class="w-6 h-6"></i>
+                </div>
+              `}
+            </div>
+
+            <div class="flex-grow min-w-0">
+              <span class="text-[10px] font-semibold text-clay-600 bg-clay-50 px-2 py-0.5 rounded border border-clay-100">
+                ${r.category}
+              </span>
+              <h3 class="font-bold text-sage-700 text-sm mt-1 truncate group-hover:text-clay-600 transition">
+                ${r.title}
+              </h3>
+              <p class="text-[11px] text-sage-500 mt-0.5 flex items-center gap-1">
+                <i data-lucide="clock" class="w-3 h-3"></i>
+                <span>${r.prepTime || '10m'} / ${r.cookTime || '0m'}</span>
+              </p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function selectRecipe(id) {
+      selectedRecipeId = id;
+      renderRecipeList();
+      renderRecipeDetail();
+    }
+
+    function renderRecipeDetail() {
+      const detailContainer = document.getElementById('detailContainer');
+      const recipe = recipes.find(r => r.id === selectedRecipeId);
+
+      if (!recipe) {
+        detailContainer.innerHTML = `
+          <div class="flex flex-col items-center justify-center h-full p-12 text-center text-sage-400">
+            <i data-lucide="cooking-pot" class="w-12 h-12 mb-3"></i>
+            <p class="text-sm font-medium">Select a recipe to start cooking!</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      detailContainer.innerHTML = `
+        <!-- Image Header -->
+        <div class="relative h-56 sm:h-64 bg-sage-100 overflow-hidden">
+          ${recipe.imageUrl ? `
+            <img src="${recipe.imageUrl}" class="w-full h-full object-cover" />
+          ` : `
+            <div class="w-full h-full flex items-center justify-center text-sage-300">
+              <i data-lucide="utensils" class="w-16 h-16"></i>
+            </div>
+          `}
+          <div class="absolute inset-0 bg-gradient-to-t from-sage-900/80 via-sage-900/20 to-transparent"></div>
+
+          <!-- Actions Header Bar -->
+          <div class="absolute top-4 right-4 flex items-center gap-2">
+            <button 
+              onclick="toggleCookingMode()" 
+              class="bg-white/90 hover:bg-white text-sage-700 px-3 py-1.5 rounded-xl backdrop-blur-md transition text-xs font-semibold flex items-center gap-1.5 shadow-sm"
+            >
+              <i data-lucide="${isCookingMode ? 'book-open' : 'flame'}" class="w-3.5 h-3.5 text-clay-500"></i>
+              <span>${isCookingMode ? 'Normal View' : 'Cook Mode'}</span>
+            </button>
+
+            <button 
+              onclick="openNfcModal('${recipe.id}')" 
+              class="bg-white/90 hover:bg-white text-clay-600 p-2 rounded-xl backdrop-blur-md transition shadow-sm" 
+              title="Program NFC Tag"
+            >
+              <i data-lucide="nfc" class="w-4 h-4"></i>
+            </button>
+
+            <button 
+              onclick="editRecipe('${recipe.id}')" 
+              class="bg-white/90 hover:bg-white text-sage-700 p-2 rounded-xl backdrop-blur-md transition shadow-sm" 
+              title="Edit Recipe"
+            >
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+            </button>
+
+            <button 
+              onclick="deleteRecipe('${recipe.id}')" 
+              class="bg-white/90 hover:bg-white text-rose-600 p-2 rounded-xl backdrop-blur-md transition shadow-sm" 
+              title="Delete Recipe"
+            >
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="absolute bottom-4 left-6 right-6">
+            <span class="text-[10px] font-bold text-white bg-clay-500/80 backdrop-blur-md px-2.5 py-1 rounded-md inline-block mb-2 uppercase tracking-wide">
+              ${recipe.category}
+            </span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
+              ${recipe.title}
+            </h2>
+          </div>
+        </div>
+
+        <!-- Recipe Meta Bar -->
+        <div class="grid grid-cols-3 border-b border-sage-100 bg-cream p-3 text-center text-xs text-sage-600">
+          <div>
+            <p class="text-[10px] uppercase text-sage-400 font-bold">Prep Time</p>
+            <p class="font-semibold text-sage-700 mt-0.5">${recipe.prepTime || 'N/A'}</p>
+          </div>
+          <div class="border-x border-sage-100">
+            <p class="text-[10px] uppercase text-sage-400 font-bold">Cook Time</p>
+            <p class="font-semibold text-sage-700 mt-0.5">${recipe.cookTime || 'N/A'}</p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-sage-400 font-bold">Servings</p>
+            <p class="font-semibold text-sage-700 mt-0.5">${recipe.servings || 'N/A'}</p>
+          </div>
+        </div>
+
+        <!-- Recipe Details Body -->
+        <div class="p-6 space-y-6 max-h-[calc(100vh-22rem)] overflow-y-auto">
+          
+          <!-- Ingredients Checklist -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-clay-600 mb-3 flex items-center justify-between">
+              <span>Ingredients</span>
+              <span class="text-[11px] font-normal text-sage-400">Tap to check off</span>
+            </h3>
+            <div class="grid grid-cols-1 ${isCookingMode ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-2">
+              ${recipe.ingredients.map((ing, idx) => `
+                <label class="flex items-start gap-3 p-2.5 rounded-xl border border-sage-100 bg-cream/50 cursor-pointer hover:bg-cream transition group">
+                  <input type="checkbox" class="mt-0.5 rounded text-clay-500 focus:ring-clay-500 h-4 w-4 border-sage-300" />
+                  <span class="text-xs text-sage-700 leading-snug group-has-[:checked]:line-through group-has-[:checked]:text-sage-400">
+                    ${ing}
+                  </span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Step by Step Instructions -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-clay-600 mb-3">
+              Preparation Steps
+            </h3>
+            <div class="space-y-3">
+              ${recipe.instructions.map((step, idx) => `
+                <div class="flex gap-3 bg-cream/40 p-3.5 rounded-2xl border border-sage-100/80">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-lg bg-clay-100 text-clay-600 text-xs font-bold flex items-center justify-center">
+                    ${idx + 1}
+                  </span>
+                  <p class="${isCookingMode ? 'text-sm font-medium' : 'text-xs'} text-sage-700 leading-relaxed mt-0.5">
+                    ${step}
+                  </p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Notes -->
+          ${recipe.notes ? `
+            <div class="bg-sage-50 border border-sage-100 p-4 rounded-2xl text-xs text-sage-600">
+              <p class="font-bold text-sage-700 mb-1 flex items-center gap-1.5">
+                <i data-lucide="lightbulb" class="w-4 h-4 text-clay-500"></i>
+                Chef's Secret Tip
+              </p>
+              <p class="leading-relaxed">${recipe.notes}</p>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      lucide.createIcons();
+    }
+
+    function toggleCookingMode() {
+      isCookingMode = !isCookingMode;
+      renderRecipeDetail();
+    }
+
+    function openRecipeModal() {
+      document.getElementById('recipeModalTitle').innerText = 'Add New Recipe';
+      document.getElementById('recipeForm').reset();
+      document.getElementById('formRecipeId').value = '';
+      document.getElementById('recipeModal').classList.remove('hidden');
+    }
+
+    function closeRecipeModal() {
+      document.getElementById('recipeModal').classList.add('hidden');
+    }
+
+    function editRecipe(id) {
+      const r = recipes.find(x => x.id === id);
+      if (!r) return;
+
+      document.getElementById('recipeModalTitle').innerText = 'Edit Recipe';
+      document.getElementById('formRecipeId').value = r.id;
+      document.getElementById('formTitle').value = r.title;
+      document.getElementById('formCategory').value = r.category;
+      document.getElementById('formPrepTime').value = r.prepTime || '';
+      document.getElementById('formCookTime').value = r.cookTime || '';
+      document.getElementById('formServings').value = r.servings || '';
+      document.getElementById('formImageUrl').value = r.imageUrl || '';
+      document.getElementById('formIngredients').value = r.ingredients.join('\n');
+      document.getElementById('formInstructions').value = r.instructions.join('\n');
+      document.getElementById('formNotes').value = r.notes || '';
+
+      document.getElementById('recipeModal').classList.remove('hidden');
+    }
+
+    function saveRecipe(e) {
+      e.preventDefault();
+      const id = document.getElementById('formRecipeId').value || 'rec-' + Date.now();
+      
+      const newRecipe = {
+        id,
+        title: document.getElementById('formTitle').value,
+        category: document.getElementById('formCategory').value,
+        prepTime: document.getElementById('formPrepTime').value,
+        cookTime: document.getElementById('formCookTime').value,
+        servings: document.getElementById('formServings').value,
+        imageUrl: document.getElementById('formImageUrl').value,
+        ingredients: document.getElementById('formIngredients').value.split('\n').filter(Boolean),
+        instructions: document.getElementById('formInstructions').value.split('\n').filter(Boolean),
+        notes: document.getElementById('formNotes').value
+      };
+
+      const index = recipes.findIndex(r => r.id === id);
+      if (index >= 0) {
+        recipes[index] = newRecipe;
+      } else {
+        recipes.unshift(newRecipe);
+      }
+
+      saveRecipesToStorage();
+      selectedRecipeId = id;
+      closeRecipeModal();
+      renderCategories();
+      renderRecipeList();
+      renderRecipeDetail();
+    }
+
+    function deleteRecipe(id) {
+      if (confirm('Are you sure you want to delete this recipe?')) {
+        recipes = recipes.filter(r => r.id !== id);
+        saveRecipesToStorage();
+        selectedRecipeId = recipes.length > 0 ? recipes[0].id : null;
+        renderCategories();
+        renderRecipeList();
+        renderRecipeDetail();
+      }
+    }
+
+    function openNfcModal(recipeId) {
+      activeNfcRecipe = recipes.find(r => r.id === recipeId);
+      if (!activeNfcRecipe) return;
+
+      const url = `${window.location.origin}${window.location.pathname}?recipe=${recipeId}`;
+      document.getElementById('nfcRecipeTitle').innerText = `Target: ${activeNfcRecipe.title}`;
+      document.getElementById('nfcUrlDisplay').innerText = url;
+
+      // Check if Web NFC is supported by the user's browser
+      if ('NDEFReader' in window) {
+        document.getElementById('webNfcSection').classList.remove('hidden');
+      }
+
+      document.getElementById('nfcModal').classList.remove('hidden');
+    }
+
+    function closeNfcModal() {
+      document.getElementById('nfcModal').classList.add('hidden');
+    }
+
+    function copyNfcUrl() {
+      const url = document.getElementById('nfcUrlDisplay').innerText;
+      
+      // Iframe fallback copy method
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      try {
+        document.execCommand('copy');
+        const btn = document.getElementById('copyNfcBtn');
+        btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>Copied!</span>`;
+        lucide.createIcons();
+        setTimeout(() => {
+          btn.innerHTML = `<i data-lucide="copy" class="w-3.5 h-3.5"></i><span>Copy URL</span>`;
+          lucide.createIcons();
+        }, 2000);
+      } catch (err) {
+        console.error('Copy failed', err);
+      }
+      document.body.removeChild(el);
+    }
+
+    async function writeWebNfc() {
+      if (!('NDEFReader' in window)) return;
+      try {
+        const ndef = new NDEFReader();
+        const url = document.getElementById('nfcUrlDisplay').innerText;
+        alert('Hold your NFC tag near your device to write...');
+        await ndef.write({
+          records: [{ recordType: "url", data: url }]
+        });
+        alert('NFC Tag successfully programmed!');
+      } catch (error) {
+        alert('NFC Write failed: ' + error);
+      }
+    }
+
+    function toggleSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.toggle('hidden');
+    }
+
+    function exportRecipes() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(recipes, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "secret_pantry_recipes.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importRecipes(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            recipes = imported;
+            saveRecipesToStorage();
+            selectedRecipeId = recipes.length > 0 ? recipes[0].id : null;
+            renderCategories();
+            renderRecipeList();
+            renderRecipeDetail();
+            alert('Recipe book imported successfully!');
+            toggleSettingsModal();
+          }
+        } catch (err) {
+          alert('Invalid JSON backup file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
