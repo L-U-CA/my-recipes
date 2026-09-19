@@ -369,6 +369,22 @@
       lucide.createIcons();
     });
 
+    // Cross-Tab / Cross-Window Real-time Sync
+    window.addEventListener('storage', (e) => {
+      if (e.key === "recipe_vault_data") {
+        loadRecipes();
+        renderFilters();
+        renderRecipes();
+      }
+    });
+
+    // Same-Window / Dynamic Sync
+    window.addEventListener('recipesUpdated', () => {
+      loadRecipes();
+      renderFilters();
+      renderRecipes();
+    });
+
     // LocalStorage Functions
     function loadRecipes() {
       const stored = localStorage.getItem("recipe_vault_data");
@@ -386,6 +402,7 @@
 
     function saveToStorage() {
       localStorage.setItem("recipe_vault_data", JSON.stringify(recipes));
+      window.dispatchEvent(new Event('recipesUpdated'));
     }
 
     // Render Filters
